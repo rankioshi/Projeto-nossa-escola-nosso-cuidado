@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer utilities {
+  .rainbow-bg {
+    background: linear-gradient(90deg, #ff9aa2, #ffb7b2, #ffdac1, #e2f0cb, #b5ead7, #c7ceea);
+  }
+
+  .glow {
+    filter: drop-shadow(0 0 15px rgba(255, 255, 0, 0.7));
+  }
+}
+
+@keyframes burst {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+.active-sparkle {
+  animation: burst 0.8s ease-out forwards;
+}
+
+.game-item {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}

@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user progress in the school care game.",
+      "type": "object",
+      "properties": {
+        "magicPoints": {
+          "type": "integer",
+          "description": "Current points earned through the quiz."
+        },
+        "quizIndex": {
+          "type": "integer",
+          "description": "Last answered quiz question index."
+        },
+        "transformedItems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of school item IDs that have been restored."
+        },
+        "hasFinished": {
+          "type": "boolean",
+          "description": "True if the user has completed the school maintenance."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last time the user state was synced."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's public name."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User's avatar URL."
+        }
+      },
+      "required": ["magicPoints", "quizIndex", "transformedItems", "lastUpdated"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Individual user progress data."
+    }
+  }
+}

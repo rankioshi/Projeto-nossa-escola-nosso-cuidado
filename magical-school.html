@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A Escola Mágica ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1c1917; font-family: system-ui, -apple-system, sans-serif; }
+        canvas { display: block; touch-action: none; cursor: pointer; }
+        #win-modal { display: none; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <h1 class="text-white text-3xl font-bold mb-4 drop-shadow-lg text-center">A Escola Mágica ✨</h1>
+
+    <div id="container" class="relative w-full max-w-lg aspect-[4/5] bg-stone-200 rounded-2xl shadow-2xl overflow-hidden border-4 border-white/20">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="hud" class="absolute top-4 left-4 right-4 text-center pointer-events-none">
+            <p class="bg-black/40 backdrop-blur-md text-white text-xs px-3 py-1 rounded-full inline-block">
+                Toque no que está triste para transformar a escola! (<span id="score">0</span>/5)
+            </p>
+        </div>
+
+        <div id="win-modal" class="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm p-8 text-center">
+            <div class="bg-white rounded-3xl p-8 shadow-2xl transform">
+                <h2 class="text-4xl font-black text-pink-500 mb-2">Concluída! 🎉</h2>
+                <p class="text-stone-600 font-medium">Você transformou a escola em um lugar mágico de aprendizado!</p>
+                <button onclick="resetGame()" class="mt-6 bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full transition-all active:scale-95">
+                    Jogar de Novo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 text-white/40 text-[10px] uppercase tracking-[0.2em] text-center">
+        Protótipo Educacional • Transformação Social
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('container');
+        const scoreEl = document.getElementById('score');
+        const winModal = document.getElementById('win-modal');
+
+        let elements = [
+            { id: 'wall', type: 'wall', x: 0, y: 0, w: 100, h: 80, isHappy: false, scale: 1 },
+            { id: 'patio', type: 'patio', x: 0, y: 80, w: 100, h: 20, isHappy: false, scale: 1 },
+            { id: 'window', type: 'window', x: 20, y: 20, w: 25, h: 30, isHappy: false, scale: 1 },
+            { id: 'lamp', type: 'lamp', x: 60, y: 5, w: 15, h: 15, isHappy: false, scale: 1 },
+            { id: 'desk', type: 'desk', x: 40, y: 55, w: 30, h: 20, isHappy: false, scale: 1 },
+        ];
+
+        let particles = [];
+        let isFinished = false;
+
+        function resize() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function spawnParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8 - 2,
+                    color,
+                    size: Math.random() * 5 + 2,
+                    life: 1.0
+                });
+            }
+        }
+
+        function spawnConfetti() {
+            const colors = ['#FFD700', '#FF69B4', '#00BFFF', '#ADFF2F', '#FFA500'];
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: canvas.height + 10,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: -Math.random() * 15 - 5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 4,
+                    life: 2.0
+                });
+            }
+        }
+
+        function drawWall(el, px, py, pw, ph) {
+            if (el.isHappy) {
+                const grad = ctx.createLinearGradient(px, py, px + pw, py + ph);
+                grad.addColorStop(0, '#ff9a9e');
+                grad.addColorStop(0.5, '#fad0c4');
+                grad.addColorStop(1, '#ffecd2');
+                ctx.fillStyle = grad;
+                ctx.fillRect(px, py, pw, ph);
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.2)';
+                ctx.beginPath(); ctx.arc(px + pw * 0.8, py + ph * 0.2, 40, 0, Math.PI * 2); ctx.fill();
+            } else {
+                ctx.fillStyle = '#9e9e9e';
+                ctx.fillRect(px, py, pw, ph);
+                ctx.strokeStyle = '#888';
+                ctx.beginPath(); ctx.moveTo(px + 100, py + 100); ctx.lineTo(px + 150, py + 120); ctx.stroke();
+            }
+        }
+
+        function drawPatio(el, px, py, pw, ph) {
+            if (el.isHappy) {
+                ctx.fillStyle = '#4CAF50';
+                ctx.fillRect(px, py, pw, ph);
+                const flowers = [[20, 30, 'red'], [50, 60, 'yellow'], [80, 40, 'pink']];
+                flowers.forEach(f => {
+                    ctx.fillStyle = f[2];
+                    ctx.beginPath(); ctx.arc(px + f[0] * pw / 100, py + f[1] * ph / 100, 5, 0, Math.PI * 2); ctx.fill();
+                });
+            } else {
+                ctx.fillStyle = '#666'; ctx.fillRect(px, py, pw, ph);
+            }
+        }
+
+        function drawWindow(el, px, py, pw, ph) {
+            ctx.save();
+            ctx.translate(px + pw / 2, py + ph / 2);
+            ctx.scale(el.scale, el.scale);
+            ctx.fillStyle = '#5d4037'; ctx.fillRect(-pw/2, -ph/2, pw, ph);
+            if (el.isHappy) {
+                ctx.fillStyle = '#87CEEB'; ctx.fillRect(-pw/2 + 5, -ph/2 + 5, pw - 10, ph - 10);
+                ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(pw/4, -ph/4, ph/6, 0, Math.PI * 2); ctx.fill();
+            } else {
+                ctx.fillStyle = '#333'; ctx.fillRect(-pw/2 + 5, -ph/2 + 5, pw - 10, ph - 10);
+            }
+            ctx.fillStyle = '#5d4037'; ctx.fillRect(-2, -ph/2, 4, ph); ctx.fillRect(-pw/2, -2, pw, 4);
+            ctx.restore();
+        }
+
+        function drawLamp(el, px, py, pw, ph) {
+            ctx.save();
+            ctx.translate(px + pw / 2, py + ph / 2);
+            ctx.scale(el.scale, el.scale);
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -ph/2); ctx.lineTo(0, -ph/4); ctx.stroke();
+            if (el.isHappy) {
+                const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, pw);
+                grad.addColorStop(0, 'rgba(255, 255, 0, 0.4)'); grad.addColorStop(1, 'rgba(255, 255, 0, 0)');
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, pw, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(0, 0, pw / 3, 0, Math.PI * 2); ctx.fill();
+            } else {
+                ctx.fillStyle = '#666'; ctx.beginPath(); ctx.ellipse(0, 0, pw / 4, pw / 3, 0, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawDesk(el, px, py, pw, ph) {
+            ctx.save();
+            ctx.translate(px + pw / 2, py + ph / 2);
+            ctx.scale(el.scale, el.scale);
+            if (el.isHappy) {
+                ctx.fillStyle = '#a1887f'; ctx.fillRect(-pw/2, -ph/4, pw, ph/4);
+                ctx.fillStyle = '#5d4037'; ctx.fillRect(-pw/2, 0, 5, ph/2); ctx.fillRect(pw/2-5, 0, 5, ph/2);
+                ctx.fillStyle = '#fff'; ctx.fillRect(-pw/4, -ph/3, pw/2, ph/6);
+            } else {
+                ctx.fillStyle = '#4e342e'; ctx.rotate(0.1); ctx.fillRect(-pw/2, -ph/4, pw, ph/4); ctx.fillRect(-pw/2, 0, 5, ph/3);
+            }
+            ctx.restore();
+        }
+
+        function loop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            elements.forEach(el => {
+                el.scale += (1 - el.scale) * 0.1;
+                const px = (el.x / 100) * canvas.width;
+                const py = (el.y / 100) * canvas.height;
+                const pw = (el.w / 100) * canvas.width;
+                const ph = (el.h / 100) * canvas.height;
+
+                if (el.type === 'wall') drawWall(el, px, py, pw, ph);
+                if (el.type === 'patio') drawPatio(el, px, py, pw, ph);
+                if (el.type === 'window') drawWindow(el, px, py, pw, ph);
+                if (el.type === 'lamp') drawLamp(el, px, py, pw, ph);
+                if (el.type === 'desk') drawDesk(el, px, py, pw, ph);
+            });
+
+            particles = particles.filter(p => {
+                p.x += p.vx; p.y += p.vy;
+                p.vy += 0.1; p.life -= 0.02;
+                if (p.life <= 0) return false;
+                ctx.globalAlpha = Math.min(1, p.life);
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                return true;
+            });
+            ctx.globalAlpha = 1;
+
+            const happyCount = elements.filter(e => e.isHappy).length;
+            scoreEl.innerText = happyCount;
+
+            if (happyCount === elements.length && !isFinished) {
+                isFinished = true;
+                winModal.style.display = 'flex';
+                spawnConfetti();
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        function interact(clientX, clientY) {
+            if (isFinished) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            const px = (x / canvas.width) * 100;
+            const py = (y / canvas.height) * 100;
+
+            for (let i = elements.length - 1; i >= 0; i--) {
+                const el = elements[i];
+                if (px >= el.x && px <= el.x + el.w && py >= el.y && py <= el.y + el.h) {
+                    if (!el.isHappy) {
+                        el.isHappy = true;
+                        el.scale = 1.5;
+                        spawnParticles(x, y, '#FFF');
+                        break;
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener('mousedown', e => interact(e.clientX, e.clientY));
+        canvas.addEventListener('touchstart', e => interact(e.touches[0].clientX, e.touches[0].clientY));
+
+        function resetGame() {
+            elements.forEach(e => e.isHappy = false);
+            isFinished = false;
+            winModal.style.display = 'none';
+        }
+
+        loop();
+    </script>
+</body>
+</html>
