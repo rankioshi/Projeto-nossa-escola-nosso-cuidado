@@ -123,6 +123,7 @@ export default function App() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [items, setItems] = useState<SchoolItem[]>([
     { id: 'renovacao', label: 'Nova Sala (Reforma Geral)', isHappy: false, cost: 3 },
     { id: 'carteiras', label: 'Carteiras Escolares', isHappy: false, cost: 2, image: 'carteiras_escolares.png' },
@@ -162,9 +163,17 @@ export default function App() {
   }, [user]);
 
   const fetchLeaderboard = async () => {
-    const data = await getLeaderboard();
-    setLeaderboardData(data);
-    setShowLeaderboard(true);
+    if (loadingLeaderboard) return;
+    setLoadingLeaderboard(true);
+    try {
+      const data = await getLeaderboard();
+      setLeaderboardData(data);
+      setShowLeaderboard(true);
+    } catch (e) {
+      console.error("Error fetching leaderboard", e);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
   };
 
   const saveToFirebase = async (points: number, index: number, updatedItems: SchoolItem[]) => {
@@ -374,7 +383,7 @@ export default function App() {
     <div className="fixed inset-0 bg-[#E0F2F1] bg-gradient-to-b from-[#E0F2F1] to-[#E3F2FD] flex flex-col items-center justify-start font-sans overflow-hidden p-4 select-none">
       
       {/* Header HUD */}
-      <div className="w-full max-w-md bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-2xl p-3 mb-3 sm:mb-6 flex justify-between items-center z-20">
+      <div className="w-full max-w-md bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-2xl p-3 mb-3 sm:mb-6 flex justify-between items-center z-40">
         <div className="flex items-center gap-2">
           <div className="bg-emerald-400 border-2 border-black p-1 rounded-lg">
             <Heart className="w-5 h-5 text-white fill-white" />
@@ -385,10 +394,11 @@ export default function App() {
         <div className="flex items-center gap-2">
           <button 
             onClick={fetchLeaderboard}
-            className="p-1 hover:bg-amber-50 rounded-lg transition-colors border-2 border-transparent hover:border-black"
+            disabled={loadingLeaderboard}
+            className={`p-1 hover:bg-amber-50 rounded-lg transition-colors border-2 border-transparent hover:border-black ${loadingLeaderboard ? 'opacity-50 cursor-wait' : ''}`}
             title="Ranking"
           >
-            <Trophy className="w-5 h-5 text-amber-500" />
+            <Trophy className={`w-5 h-5 text-amber-500 ${loadingLeaderboard ? 'animate-spin' : ''}`} />
           </button>
 
           <button 
@@ -595,32 +605,41 @@ export default function App() {
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                {leaderboardData.map((leader, i) => (
-                  <div 
-                    key={leader.id}
-                    className={`flex items-center gap-3 p-3 border-4 border-black rounded-2xl ${
-                      leader.id === user.uid ? 'bg-amber-100' : 'bg-white'
-                    }`}
-                  >
-                    <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black text-sm">
-                      {i + 1}
+                {leaderboardData.length > 0 ? (
+                  leaderboardData.map((leader, i) => (
+                    <div 
+                      key={leader.id}
+                      className={`flex items-center gap-3 p-3 border-4 border-black rounded-2xl ${
+                        leader.id === user.uid ? 'bg-amber-100' : 'bg-white'
+                      }`}
+                    >
+                      <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-black text-sm">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <p className="font-black truncate uppercase text-sm text-stone-800">
+                          {leader.displayName || "Curioso"}
+                        </p>
+                        {leader.hasFinished && (
+                          <div className="bg-emerald-500 text-white rounded-full p-1" title="Escola Renovada!">
+                            <GraduationCap className="w-3 h-3" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 bg-red-400 border-2 border-black px-2 py-0.5 rounded-full">
+                         <Heart className="w-3 h-3 text-white fill-current" />
+                         <span className="text-xs font-black text-white">{leader.magicPoints}</span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0 flex items-center gap-2">
-                      <p className="font-black truncate uppercase text-sm text-stone-800">
-                        {leader.displayName || "Curioso"}
-                      </p>
-                      {leader.hasFinished && (
-                        <div className="bg-emerald-500 text-white rounded-full p-1" title="Escola Renovada!">
-                          <GraduationCap className="w-3 h-3" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 bg-red-400 border-2 border-black px-2 py-0.5 rounded-full">
-                       <Heart className="w-3 h-3 text-white fill-current" />
-                       <span className="text-xs font-black text-white">{leader.magicPoints}</span>
-                    </div>
+                  ))
+                ) : (
+                  <div className="bg-stone-50 border-4 border-dashed border-stone-300 rounded-[30px] p-8 text-center">
+                    <div className="text-4xl mb-4 opacity-50">✨</div>
+                    <p className="font-bold text-stone-500 text-sm leading-relaxed">
+                      Para aparecer no ranking é preciso cuidar da escola e fazer melhorias na escola!
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
             </motion.div>
           </div>
